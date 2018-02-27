@@ -55,9 +55,9 @@ initStandUp teamMember =
 
 
 view model =
-    div []
+    div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
-        , ul [ class "stand-up" ]
+        , ul [ class "stand-up-entries" ]
             (List.map
                 (\standUpEntry -> li [] [ text standUpEntry.name ])
                 model.standUpEntries

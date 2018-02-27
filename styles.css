@@ -1,0 +1,16 @@
+html,
+head,
+body {
+   padding: 0;
+   margin: 0;
+}
+
+body {
+   font-family: calibri, helvetica, arial, sans-serif;
+   font-size: 25px;
+}
+
+.stand-up-meeting {
+   margin: 0 auto;
+   width: 300px;
+}
