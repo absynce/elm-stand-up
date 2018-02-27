@@ -1,0 +1,25 @@
+{
+  "name": "elm-stand-up",
+  "version": "1.0.0",
+  "description": "A daily stand-up meeting tool written in Elm.",
+  "main": "index.js",
+  "scripts": {
+    "build": "cd src && elm-make Main.elm --output=../elm.js",
+    "dev": "npm run watch -s && npm run start",
+    "start": "elm-reactor -p 8083",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "chokidar \"**/*.elm\" -c \"npm run build\" --initial"
+  },
+  "keywords": [
+    "elm",
+    "stand-up",
+    "agile",
+    "scrum"
+  ],
+  "author": "Jared M. Smith <absynce@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "chokidar-cli": "^1.2.0",
+    "elm": "^0.18.0"
+  }
+}
