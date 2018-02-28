@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (class)
 
@@ -17,7 +18,7 @@ main =
 
 
 type alias Model =
-    { standUpEntries : List StandUpEntry }
+    { standUpEntries : Dict String StandUpEntry }
 
 
 type alias StandUpEntry =
@@ -47,12 +48,21 @@ teamMembers =
 
 
 model =
-    { standUpEntries =
-        List.map initStandUp teamMembers
-    }
+    let
+        teamMembersKeyedTuple =
+            List.map (\teamMember -> ( teamMember.name, teamMember ))
+                teamMembers
+
+        teamMembersDict =
+            Dict.fromList teamMembersKeyedTuple
+    in
+        { standUpEntries =
+            Dict.map initStandUp teamMembersDict
+        }
 
 
-initStandUp teamMember =
+initStandUp : String -> TeamMember -> StandUpEntry
+initStandUp name teamMember =
     { name = teamMember.name
     , completed = False
     }
@@ -66,9 +76,10 @@ view model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
         , ul [ class "stand-up-entries" ]
-            (List.map
-                (\standUpEntry -> li [] [ text standUpEntry.name ])
-                model.standUpEntries
+            (model.standUpEntries
+                |> Dict.values
+                |> List.map
+                    (\standUpEntry -> li [] [ text standUpEntry.name ])
             )
         ]
 
