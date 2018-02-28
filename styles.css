@@ -14,3 +14,7 @@ body {
    margin: 0 auto;
    width: 300px;
 }
+
+.completed {
+   text-decoration: line-through;
+}

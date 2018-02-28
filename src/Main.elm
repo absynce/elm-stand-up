@@ -3,6 +3,7 @@ module Main exposing (..)
 import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (class, type_)
+import Html.Events exposing (onClick)
 
 
 main =
@@ -84,15 +85,56 @@ view model =
 
 
 viewStandUpEntry standUpEntry =
-    li []
-        [ input [ type_ "checkbox" ] []
-        , text standUpEntry.name
-        ]
+    let
+        completedClass =
+            if standUpEntry.completed then
+                "completed"
+            else
+                ""
+    in
+        li [ class completedClass ]
+            [ input
+                [ type_ "checkbox"
+                , onClick (ToggleEntryCompleted standUpEntry.name)
+                ]
+                []
+            , text standUpEntry.name
+            ]
 
 
 
 -- Update
 
 
+type Msg
+    = ToggleEntryCompleted String
+
+
+update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        ToggleEntryCompleted name ->
+            toggleEntryCompleted model name
+
+
+toggleEntryCompleted : Model -> String -> Model
+toggleEntryCompleted model name =
+    let
+        updatedStandUpEntries =
+            Dict.update name toggleCompleted model.standUpEntries
+    in
+        { model | standUpEntries = updatedStandUpEntries }
+
+
+toggleCompleted : Maybe StandUpEntry -> Maybe StandUpEntry
+toggleCompleted maybeStandUpEntry =
+    case maybeStandUpEntry of
+        Nothing ->
+            -- Could show an error in the future.
+            Nothing
+
+        Just standUpEntry ->
+            Just
+                { standUpEntry
+                    | completed = not standUpEntry.completed
+                }
