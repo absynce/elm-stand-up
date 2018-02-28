@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, type_)
 
 
 main =
@@ -67,9 +67,16 @@ view model =
         [ h2 [] [ text "Stand-up meeting" ]
         , ul [ class "stand-up-entries" ]
             (List.map
-                (\standUpEntry -> li [] [ text standUpEntry.name ])
+                viewStandUpEntry
                 model.standUpEntries
             )
+        ]
+
+
+viewStandUpEntry standUpEntry =
+    li []
+        [ input [ type_ "checkbox" ] []
+        , text standUpEntry.name
         ]
 
 
