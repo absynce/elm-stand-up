@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (class, type_)
+import Html.Attributes exposing (checked, class, type_)
 import Html.Events exposing (onClick)
 
 
@@ -95,6 +95,7 @@ viewStandUpEntry standUpEntry =
         li [ class completedClass ]
             [ input
                 [ type_ "checkbox"
+                , checked standUpEntry.completed
                 , onClick (ToggleEntryCompleted standUpEntry.name)
                 ]
                 []
