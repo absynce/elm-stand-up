@@ -35,6 +35,14 @@ type alias TeamMember =
 teamMembers =
     [ TeamMember "Jesse"
     , TeamMember "Skelly"
+    , TeamMember "Nanette"
+    , TeamMember "Michael"
+    , TeamMember "Alex"
+    , TeamMember "Carrie"
+    , TeamMember "Jared"
+    , TeamMember "Tanner"
+    , TeamMember "Matth"
+    , TeamMember "Heather"
     ]
 
 
