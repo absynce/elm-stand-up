@@ -4,6 +4,7 @@ import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (checked, class, type_)
 import Html.Events exposing (onClick)
+import Html.Keyed as Keyed
 
 
 main =
@@ -76,7 +77,7 @@ initStandUp name teamMember =
 view model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
-        , ul [ class "stand-up-entries" ]
+        , Keyed.ul [ class "stand-up-entries" ]
             (viewStandUpEntries model.standUpEntries)
         ]
 
@@ -85,7 +86,7 @@ viewStandUpEntries standUpEntries =
     standUpEntries
         |> Dict.values
         |> List.sortWith completedComparison
-        |> List.map viewStandUpEntry
+        |> List.map viewKeyedEntry
 
 
 completedComparison entryA entryB =
@@ -101,6 +102,10 @@ completedComparison entryA entryB =
 
         ( False, True ) ->
             LT
+
+
+viewKeyedEntry standUpEntry =
+    ( standUpEntry.name, viewStandUpEntry standUpEntry )
 
 
 viewStandUpEntry standUpEntry =
