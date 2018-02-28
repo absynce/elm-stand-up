@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import Html.Attributes
+import Html.Attributes exposing (class)
 
 
 main =
