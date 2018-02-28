@@ -77,11 +77,30 @@ view model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
         , ul [ class "stand-up-entries" ]
-            (model.standUpEntries
-                |> Dict.values
-                |> List.map viewStandUpEntry
-            )
+            (viewStandUpEntries model.standUpEntries)
         ]
+
+
+viewStandUpEntries standUpEntries =
+    standUpEntries
+        |> Dict.values
+        |> List.sortWith completedComparison
+        |> List.map viewStandUpEntry
+
+
+completedComparison entryA entryB =
+    case ( entryA.completed, entryB.completed ) of
+        ( True, True ) ->
+            EQ
+
+        ( False, False ) ->
+            EQ
+
+        ( True, False ) ->
+            GT
+
+        ( False, True ) ->
+            LT
 
 
 viewStandUpEntry standUpEntry =
