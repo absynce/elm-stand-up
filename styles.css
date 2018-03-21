@@ -10,6 +10,19 @@ body {
    font-size: 25px;
 }
 
+.init-error {
+   margin: 0 auto;
+   width: 500px;
+}
+
+pre {
+   background-color: rgba(0, 0, 0, 0.2);
+   border-radius: 0.2em;
+   color: rgba(20, 20, 20, .9);
+   font-size: .6em;
+   padding: 20px;
+}
+
 .stand-up-meeting {
    margin: 0 auto;
    width: 300px;
@@ -18,4 +31,13 @@ body {
 .completed {
    color: rgba(0, 0, 0, 0.6);
    text-decoration: line-through;
+}
+
+.init-error {
+   background-color: rgba(189, 54, 47, 0.1);
+   border: solid 1px rgba(189, 54, 47, 0.7);
+   border-radius: 0.2em;
+   font-size: 18px;
+   margin-top: 20px;
+   padding: 20px;
 }

@@ -1,17 +1,18 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (checked, class, type_)
 import Html.Events exposing (onClick)
 import Html.Keyed as Keyed
+import Json.Decode as Decode exposing (Decoder)
 import Json.Encode
 
 
 main : Program UnsafeFlags Model Msg
 main =
     Html.programWithFlags
-        { init = init
+        { init = (decodeFlags >> init)
         , view = view
         , update = update
         , subscriptions = \_ -> Sub.none
@@ -23,11 +24,14 @@ main =
 
 
 type alias Model =
-    { standUpEntries : Dict String StandUpEntry }
+    { standUpEntries : Dict String StandUpEntry
+    , error : Error
+    }
 
 
-type alias UnsafeFlags =
-    Json.Encode.Value
+type Error
+    = NoError
+    | InitError String
 
 
 type alias StandUpEntry =
@@ -57,20 +61,57 @@ teamMembers =
     ]
 
 
-init : UnsafeFlags -> ( Model, Cmd Msg )
-init unsafeFlags =
+teamMembersToDict : List TeamMember -> Dict String TeamMember
+teamMembersToDict teamMembers =
     let
         teamMembersKeyedTuple =
             List.map (\teamMember -> ( teamMember.name, teamMember ))
                 teamMembers
+    in
+        Dict.fromList teamMembersKeyedTuple
 
+
+
+-- Init
+
+
+type alias UnsafeFlags =
+    Json.Encode.Value
+
+
+type alias Flags =
+    { teamMembers : List TeamMember }
+
+
+init : Result String Flags -> ( Model, Cmd Msg )
+init flagsResult =
+    case flagsResult of
+        Ok flags ->
+            initModelFromFlags flags
+                ! []
+
+        Err err ->
+            initModelFromError err
+                ! []
+
+
+initModelFromFlags : Flags -> Model
+initModelFromFlags flags =
+    let
         teamMembersDict =
-            Dict.fromList teamMembersKeyedTuple
+            teamMembersToDict flags.teamMembers
     in
         { standUpEntries =
             Dict.map initStandUp teamMembersDict
+        , error = NoError
         }
-            ! []
+
+
+initModelFromError : String -> Model
+initModelFromError error =
+    { standUpEntries = Dict.empty
+    , error = InitError error
+    }
 
 
 initStandUp : String -> TeamMember -> StandUpEntry
@@ -86,6 +127,16 @@ initStandUp name teamMember =
 
 view : Model -> Html Msg
 view model =
+    case model.error of
+        NoError ->
+            viewStandUp model
+
+        InitError error ->
+            viewError model
+
+
+viewStandUp : Model -> Html Msg
+viewStandUp model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
         , Keyed.ul [ class "stand-up-entries" ]
@@ -142,6 +193,36 @@ viewStandUpEntry standUpEntry =
             ]
 
 
+viewError : Model -> Html Msg
+viewError model =
+    case model.error of
+        NoError ->
+            text ""
+
+        InitError error ->
+            div [ class "init-error" ]
+                [ h2 [] [ text "Initialization error" ]
+                , p []
+                    [ text "Error:"
+                    , pre [] [ text error ]
+                    ]
+                , p []
+                    [ text "Ensure you are initializing the data, something like this:"
+                    , pre []
+                        [ code [] [ text viewErrorHint ]
+                        ]
+                    ]
+                ]
+
+
+viewErrorHint : String
+viewErrorHint =
+    """var storedState = localStorage.getItem('elm-stand-up');
+var startingState = storedState ? JSON.parse(storedState) : [];
+var elmStandUp = Elm.Main.fullscreen(startingState);
+"""
+
+
 
 -- Update
 
@@ -178,3 +259,31 @@ toggleCompleted maybeStandUpEntry =
                 { standUpEntry
                     | completed = not standUpEntry.completed
                 }
+
+
+
+-- Ports
+
+
+port saveStandUp : Json.Encode.Value -> Cmd msg
+
+
+
+-- Serialization
+
+
+decodeFlags : UnsafeFlags -> Result String Flags
+decodeFlags unsafeFlags =
+    Decode.decodeValue flagsDecoder unsafeFlags
+
+
+flagsDecoder : Decoder Flags
+flagsDecoder =
+    Decode.map Flags
+        (Decode.list teamMemberDecoder)
+
+
+teamMemberDecoder : Decoder TeamMember
+teamMemberDecoder =
+    Decode.map TeamMember
+        (Decode.field "name" Decode.string)

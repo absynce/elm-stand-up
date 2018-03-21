@@ -10,7 +10,9 @@
 
 <body>
    <script type="text/javascript">
-      Elm.Main.fullscreen()
+      var storedState = localStorage.getItem('elm-stand-up');
+      var startingState = storedState ? JSON.parse(storedState) : [];
+      var elmStandUp = Elm.Main.fullscreen(startingState);
    </script>
 </body>
 
