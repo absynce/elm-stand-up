@@ -5,14 +5,16 @@ import Html exposing (..)
 import Html.Attributes exposing (checked, class, type_)
 import Html.Events exposing (onClick)
 import Html.Keyed as Keyed
+import Json.Encode
 
 
-main : Program Never Model Msg
+main : Program UnsafeFlags Model Msg
 main =
-    Html.beginnerProgram
-        { model = model
+    Html.programWithFlags
+        { init = init
         , view = view
         , update = update
+        , subscriptions = \_ -> Sub.none
         }
 
 
@@ -22,6 +24,10 @@ main =
 
 type alias Model =
     { standUpEntries : Dict String StandUpEntry }
+
+
+type alias UnsafeFlags =
+    Json.Encode.Value
 
 
 type alias StandUpEntry =
@@ -51,8 +57,8 @@ teamMembers =
     ]
 
 
-model : Model
-model =
+init : UnsafeFlags -> ( Model, Cmd Msg )
+init unsafeFlags =
     let
         teamMembersKeyedTuple =
             List.map (\teamMember -> ( teamMember.name, teamMember ))
@@ -64,6 +70,7 @@ model =
         { standUpEntries =
             Dict.map initStandUp teamMembersDict
         }
+            ! []
 
 
 initStandUp : String -> TeamMember -> StandUpEntry
@@ -143,11 +150,11 @@ type Msg
     = ToggleEntryCompleted String
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ToggleEntryCompleted name ->
-            toggleEntryCompleted model name
+            toggleEntryCompleted model name ! []
 
 
 toggleEntryCompleted : Model -> String -> Model
