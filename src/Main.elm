@@ -12,11 +12,16 @@ import Json.Encode as Encode
 main : Program UnsafeFlags Model Msg
 main =
     Html.programWithFlags
-        { init = (decodeFlags >> init)
+        { init = initSafely
         , view = view
         , update = updateWithSave
         , subscriptions = \_ -> Sub.none
         }
+
+
+initSafely : UnsafeFlags -> ( Model, Cmd Msg )
+initSafely =
+    decodeFlags >> init
 
 
 {-| Save model on every update.
