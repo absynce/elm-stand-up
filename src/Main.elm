@@ -7,6 +7,7 @@ import Html.Events exposing (onClick)
 import Html.Keyed as Keyed
 
 
+main : Program Never Model Msg
 main =
     Html.beginnerProgram
         { model = model
@@ -35,6 +36,7 @@ type alias TeamMember =
 
 {-| `teamMembers` might come from an HTTP request in the real world.
 -}
+teamMembers : List TeamMember
 teamMembers =
     [ TeamMember "Jesse"
     , TeamMember "Skelly"
@@ -49,6 +51,7 @@ teamMembers =
     ]
 
 
+model : Model
 model =
     let
         teamMembersKeyedTuple =
@@ -74,6 +77,7 @@ initStandUp name teamMember =
 -- View
 
 
+view : Model -> Html Msg
 view model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
@@ -82,6 +86,7 @@ view model =
         ]
 
 
+viewStandUpEntries : Dict String StandUpEntry -> List ( String, Html Msg )
 viewStandUpEntries standUpEntries =
     standUpEntries
         |> Dict.values
@@ -89,6 +94,7 @@ viewStandUpEntries standUpEntries =
         |> List.map viewKeyedEntry
 
 
+completedComparison : StandUpEntry -> StandUpEntry -> Order
 completedComparison entryA entryB =
     case ( entryA.completed, entryB.completed ) of
         ( True, True ) ->
@@ -104,10 +110,12 @@ completedComparison entryA entryB =
             LT
 
 
+viewKeyedEntry : StandUpEntry -> ( String, Html Msg )
 viewKeyedEntry standUpEntry =
     ( standUpEntry.name, viewStandUpEntry standUpEntry )
 
 
+viewStandUpEntry : StandUpEntry -> Html Msg
 viewStandUpEntry standUpEntry =
     let
         completedClass =
