@@ -4,7 +4,7 @@
   "description": "A daily stand-up meeting tool written in Elm.",
   "main": "index.js",
   "scripts": {
-    "build": "cd src && elm-make Main.elm --output=../elm.js",
+    "build": "cd src && elm-make Main.elm --output=../elm.js --debug",
     "dev": "npm run watch -s && npm run start",
     "start": "elm-reactor -p 8083",
     "test": "echo \"Error: no test specified\" && exit 1",

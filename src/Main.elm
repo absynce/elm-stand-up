@@ -1,7 +1,10 @@
 module Main exposing (..)
 
+import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes
+import Html.Attributes exposing (checked, class, type_)
+import Html.Events exposing (onClick)
+import Html.Keyed as Keyed
 
 
 main =
@@ -17,7 +20,7 @@ main =
 
 
 type alias Model =
-    { standUpEntries : List StandUpEntry }
+    { standUpEntries : Dict String StandUpEntry }
 
 
 type alias StandUpEntry =
@@ -35,16 +38,33 @@ type alias TeamMember =
 teamMembers =
     [ TeamMember "Jesse"
     , TeamMember "Skelly"
+    , TeamMember "Nanette"
+    , TeamMember "Michael"
+    , TeamMember "Alex"
+    , TeamMember "Carrie"
+    , TeamMember "Jared"
+    , TeamMember "Tanner"
+    , TeamMember "Matth"
+    , TeamMember "Heather"
     ]
 
 
 model =
-    { standUpEntries =
-        List.map initStandUp teamMembers
-    }
+    let
+        teamMembersKeyedTuple =
+            List.map (\teamMember -> ( teamMember.name, teamMember ))
+                teamMembers
+
+        teamMembersDict =
+            Dict.fromList teamMembersKeyedTuple
+    in
+        { standUpEntries =
+            Dict.map initStandUp teamMembersDict
+        }
 
 
-initStandUp teamMember =
+initStandUp : String -> TeamMember -> StandUpEntry
+initStandUp name teamMember =
     { name = teamMember.name
     , completed = False
     }
@@ -57,17 +77,89 @@ initStandUp teamMember =
 view model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
-        , ul [ class "stand-up-entries" ]
-            (List.map
-                (\standUpEntry -> li [] [ text standUpEntry.name ])
-                model.standUpEntries
-            )
+        , Keyed.ul [ class "stand-up-entries" ]
+            (viewStandUpEntries model.standUpEntries)
         ]
+
+
+viewStandUpEntries standUpEntries =
+    standUpEntries
+        |> Dict.values
+        |> List.sortWith completedComparison
+        |> List.map viewKeyedEntry
+
+
+completedComparison entryA entryB =
+    case ( entryA.completed, entryB.completed ) of
+        ( True, True ) ->
+            EQ
+
+        ( False, False ) ->
+            EQ
+
+        ( True, False ) ->
+            GT
+
+        ( False, True ) ->
+            LT
+
+
+viewKeyedEntry standUpEntry =
+    ( standUpEntry.name, viewStandUpEntry standUpEntry )
+
+
+viewStandUpEntry standUpEntry =
+    let
+        completedClass =
+            if standUpEntry.completed then
+                "completed"
+            else
+                ""
+    in
+        li [ class completedClass ]
+            [ input
+                [ type_ "checkbox"
+                , checked standUpEntry.completed
+                , onClick (ToggleEntryCompleted standUpEntry.name)
+                ]
+                []
+            , text standUpEntry.name
+            ]
 
 
 
 -- Update
 
 
+type Msg
+    = ToggleEntryCompleted String
+
+
+update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        ToggleEntryCompleted name ->
+            toggleEntryCompleted model name
+
+
+toggleEntryCompleted : Model -> String -> Model
+toggleEntryCompleted model name =
+    let
+        updatedStandUpEntries =
+            Dict.update name toggleCompleted model.standUpEntries
+    in
+        { model | standUpEntries = updatedStandUpEntries }
+
+
+toggleCompleted : Maybe StandUpEntry -> Maybe StandUpEntry
+toggleCompleted maybeStandUpEntry =
+    case maybeStandUpEntry of
+        Nothing ->
+            -- Could show an error in the future.
+            Nothing
+
+        Just standUpEntry ->
+            Just
+                { standUpEntry
+                    | completed = not standUpEntry.completed
+                }
