@@ -31,7 +31,7 @@ type alias UnsafeFlags =
 
 
 type alias StandUpEntry =
-    { name : String
+    { teamMember : TeamMember
     , completed : Bool
     }
 
@@ -75,7 +75,7 @@ init unsafeFlags =
 
 initStandUp : String -> TeamMember -> StandUpEntry
 initStandUp name teamMember =
-    { name = teamMember.name
+    { teamMember = teamMember
     , completed = False
     }
 
@@ -119,7 +119,7 @@ completedComparison entryA entryB =
 
 viewKeyedEntry : StandUpEntry -> ( String, Html Msg )
 viewKeyedEntry standUpEntry =
-    ( standUpEntry.name, viewStandUpEntry standUpEntry )
+    ( standUpEntry.teamMember.name, viewStandUpEntry standUpEntry )
 
 
 viewStandUpEntry : StandUpEntry -> Html Msg
@@ -135,10 +135,10 @@ viewStandUpEntry standUpEntry =
             [ input
                 [ type_ "checkbox"
                 , checked standUpEntry.completed
-                , onClick (ToggleEntryCompleted standUpEntry.name)
+                , onClick (ToggleEntryCompleted standUpEntry.teamMember.name)
                 ]
                 []
-            , text standUpEntry.name
+            , text standUpEntry.teamMember.name
             ]
 
 
