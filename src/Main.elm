@@ -6,7 +6,7 @@ import Html.Attributes exposing (checked, class, type_)
 import Html.Events exposing (onClick)
 import Html.Keyed as Keyed
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode
+import Json.Encode as Encode
 
 
 main : Program UnsafeFlags Model Msg
@@ -14,9 +14,29 @@ main =
     Html.programWithFlags
         { init = (decodeFlags >> init)
         , view = view
-        , update = update
+        , update = updateWithSave
         , subscriptions = \_ -> Sub.none
         }
+
+
+{-| Save model on every update.
+
+From <https://github.com/evancz/elm-todomvc/blob/master/Todo.elm#L39>.
+
+-}
+updateWithSave : Msg -> Model -> ( Model, Cmd Msg )
+updateWithSave msg model =
+    let
+        ( newModel, cmds ) =
+            update msg model
+
+        encodedNewModel =
+            newModel
+                |> encodeModel
+    in
+        ( newModel
+        , Cmd.batch [ saveStandUp encodedNewModel, cmds ]
+        )
 
 
 
@@ -76,7 +96,7 @@ teamMembersToDict teamMembers =
 
 
 type alias UnsafeFlags =
-    Json.Encode.Value
+    Encode.Value
 
 
 type alias Flags =
@@ -102,7 +122,7 @@ initModelFromFlags flags =
             teamMembersToDict flags.teamMembers
     in
         { standUpEntries =
-            Dict.map initStandUp teamMembersDict
+            Dict.map initStandUpFromTeamMemberDict teamMembersDict
         , error = NoError
         }
 
@@ -114,8 +134,13 @@ initModelFromError error =
     }
 
 
-initStandUp : String -> TeamMember -> StandUpEntry
-initStandUp name teamMember =
+initStandUpFromTeamMemberDict : String -> TeamMember -> StandUpEntry
+initStandUpFromTeamMemberDict name teamMember =
+    initStandUpEntryFromTeamMember teamMember
+
+
+initStandUpEntryFromTeamMember : TeamMember -> StandUpEntry
+initStandUpEntryFromTeamMember teamMember =
     { teamMember = teamMember
     , completed = False
     }
@@ -265,11 +290,48 @@ toggleCompleted maybeStandUpEntry =
 -- Ports
 
 
-port saveStandUp : Json.Encode.Value -> Cmd msg
+port saveStandUp : Encode.Value -> Cmd msg
 
 
 
 -- Serialization
+
+
+encodeModel : Model -> Encode.Value
+encodeModel model =
+    let
+        standUpEntryList =
+            model.standUpEntries
+                |> Dict.values
+
+        encodedStandUpEntries =
+            standUpEntryList
+                |> List.map encodeStandUpEntry
+
+        encodedTeamMembers =
+            standUpEntryList
+                |> List.map .teamMember
+                |> List.map encodeTeamMember
+    in
+        Encode.object
+            [ ( "standUpEntries", Encode.list encodedStandUpEntries )
+            , ( "teamMembers", Encode.list encodedTeamMembers )
+            ]
+
+
+encodeStandUpEntry : StandUpEntry -> Encode.Value
+encodeStandUpEntry standUpEntry =
+    Encode.object
+        [ ( "teamMember", encodeTeamMember standUpEntry.teamMember )
+        , ( "completed", Encode.bool standUpEntry.completed )
+        ]
+
+
+encodeTeamMember : TeamMember -> Encode.Value
+encodeTeamMember teamMember =
+    Encode.object
+        [ ( "name", Encode.string teamMember.name )
+        ]
 
 
 decodeFlags : UnsafeFlags -> Result String Flags
