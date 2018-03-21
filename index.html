@@ -10,9 +10,14 @@
 
 <body>
    <script type="text/javascript">
-      var storedState = localStorage.getItem('elm-stand-up');
+      var storedState = localStorage.getItem('elm-stand-up-team-members');
       var startingState = storedState ? JSON.parse(storedState) : [];
       var elmStandUp = Elm.Main.fullscreen(startingState);
+
+      elmStandUp.ports.saveStandUp.subscribe(function (standUpModel) {
+         console.log(standUpModel);
+         localStorage.setItem('elm-stand-up-team-members', JSON.stringify(standUpModel.teamMembers));
+      });
    </script>
 </body>
 

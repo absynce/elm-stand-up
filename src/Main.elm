@@ -2,8 +2,8 @@ port module Main exposing (..)
 
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (checked, class, type_)
-import Html.Events exposing (onClick)
+import Html.Attributes exposing (checked, class, placeholder, type_, value)
+import Html.Events exposing (onClick, onInput)
 import Html.Keyed as Keyed
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -51,12 +51,24 @@ updateWithSave msg model =
 type alias Model =
     { standUpEntries : Dict String StandUpEntry
     , error : Error
+    , addTeamMemberError : AddTeamMemberError
+    , addTeamMemberInput : String
     }
 
 
 type Error
     = NoError
     | InitError String
+
+
+type AddTeamMemberValidation
+    = ValidTeamMember TeamMember
+    | TeamMemberNameAlreadyExists String
+
+
+type AddTeamMemberError
+    = NoAddTeamMemberError
+    | NameAlreadyExists String
 
 
 type alias StandUpEntry =
@@ -67,23 +79,6 @@ type alias StandUpEntry =
 
 type alias TeamMember =
     { name : String }
-
-
-{-| `teamMembers` might come from an HTTP request in the real world.
--}
-teamMembers : List TeamMember
-teamMembers =
-    [ TeamMember "Jesse"
-    , TeamMember "Skelly"
-    , TeamMember "Nanette"
-    , TeamMember "Michael"
-    , TeamMember "Alex"
-    , TeamMember "Carrie"
-    , TeamMember "Jared"
-    , TeamMember "Tanner"
-    , TeamMember "Matth"
-    , TeamMember "Heather"
-    ]
 
 
 teamMembersToDict : List TeamMember -> Dict String TeamMember
@@ -129,6 +124,8 @@ initModelFromFlags flags =
         { standUpEntries =
             Dict.map initStandUpFromTeamMemberDict teamMembersDict
         , error = NoError
+        , addTeamMemberError = NoAddTeamMemberError
+        , addTeamMemberInput = ""
         }
 
 
@@ -136,6 +133,8 @@ initModelFromError : String -> Model
 initModelFromError error =
     { standUpEntries = Dict.empty
     , error = InitError error
+    , addTeamMemberError = NoAddTeamMemberError
+    , addTeamMemberInput = ""
     }
 
 
@@ -170,7 +169,10 @@ viewStandUp model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
         , Keyed.ul [ class "stand-up-entries" ]
-            (viewStandUpEntries model.standUpEntries)
+            ((viewStandUpEntries model.standUpEntries)
+                -- TODO: Improve the keying/clarity here.
+                |> List.append [ ( "", viewAddNewStandupEntryInput model ) ]
+            )
         ]
 
 
@@ -223,6 +225,40 @@ viewStandUpEntry standUpEntry =
             ]
 
 
+viewAddNewStandupEntryInput : Model -> Html Msg
+viewAddNewStandupEntryInput model =
+    li []
+        [ input
+            [ type_ "checkbox"
+            , checked False
+            ]
+            []
+        , input
+            [ type_ "text"
+            , placeholder "John Doe"
+            , onInput UpdateTeamMemberInput
+            , onEnter AddTeamMember
+            , value model.addTeamMemberInput
+            ]
+            []
+
+        -- TODO: Add error message when NameAlreadyExists.
+        ]
+
+
+onEnter : Msg -> Attribute Msg
+onEnter msg =
+    let
+        isEnter code =
+            if code == 13 then
+                Decode.succeed msg
+            else
+                Decode.fail "not ENTER"
+    in
+        Html.Events.on "keydown"
+            (Html.Events.keyCode |> Decode.andThen isEnter)
+
+
 viewError : Model -> Html Msg
 viewError model =
     case model.error of
@@ -259,6 +295,8 @@ var elmStandUp = Elm.Main.fullscreen(startingState);
 
 type Msg
     = ToggleEntryCompleted String
+    | AddTeamMember
+    | UpdateTeamMemberInput String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -266,6 +304,15 @@ update msg model =
     case msg of
         ToggleEntryCompleted name ->
             toggleEntryCompleted model name ! []
+
+        AddTeamMember ->
+            (model |> addTeamMember model.addTeamMemberInput) ! []
+
+        UpdateTeamMemberInput name ->
+            { model
+                | addTeamMemberInput = name
+            }
+                ! []
 
 
 toggleEntryCompleted : Model -> String -> Model
@@ -288,6 +335,41 @@ toggleCompleted maybeStandUpEntry =
             Just
                 { standUpEntry
                     | completed = not standUpEntry.completed
+                }
+
+
+validateTeamMember : TeamMember -> Model -> AddTeamMemberValidation
+validateTeamMember teamMember model =
+    let
+        nameInUse =
+            model.standUpEntries
+                |> Dict.get teamMember.name
+    in
+        case nameInUse of
+            Just standUpEntry ->
+                TeamMemberNameAlreadyExists standUpEntry.teamMember.name
+
+            Nothing ->
+                ValidTeamMember teamMember
+
+
+addTeamMember : String -> Model -> Model
+addTeamMember name model =
+    let
+        addTeamMemberValidation =
+            model
+                |> validateTeamMember (TeamMember name)
+    in
+        case addTeamMemberValidation of
+            ValidTeamMember teamMember ->
+                { model
+                    | standUpEntries = Dict.insert teamMember.name (initStandUpEntryFromTeamMember teamMember) model.standUpEntries
+                    , addTeamMemberInput = ""
+                }
+
+            TeamMemberNameAlreadyExists name ->
+                { model
+                    | addTeamMemberError = NameAlreadyExists name
                 }
 
 
