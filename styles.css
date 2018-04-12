@@ -28,9 +28,34 @@ pre {
    width: 300px;
 }
 
+.stand-up-entry i.disabled {
+  visibility: hidden;
+}
+
+.stand-up-entry > * {
+  padding: 0.2em 0.35em;
+}
+
+.stand-up-entry input[type="text"] {
+  font-size: 0.8em;
+  width: 130px;
+}
+
+li.stand-up-entry {
+  list-style: none;
+}
+
+.stand-up-entry:hover i {
+  visibility: visible;
+}
+
 .completed {
    color: rgba(0, 0, 0, 0.6);
    text-decoration: line-through;
+}
+
+.disabled {
+  color: #adb5bd;
 }
 
 .init-error {

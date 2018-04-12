@@ -2,7 +2,7 @@ port module Main exposing (..)
 
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (checked, class, placeholder, type_, value)
+import Html.Attributes exposing (checked, class, classList, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed as Keyed
 import Json.Decode as Decode exposing (Decoder)
@@ -17,6 +17,10 @@ main =
         , update = updateWithSave
         , subscriptions = \_ -> Sub.none
         }
+
+
+
+-- Aspects (AOP)
 
 
 initSafely : UnsafeFlags -> ( Model, Cmd Msg )
@@ -73,6 +77,7 @@ type AddTeamMemberError
 
 type alias StandUpEntry =
     { teamMember : TeamMember
+    , checkHipChat : Bool
     , completed : Bool
     }
 
@@ -146,6 +151,7 @@ initStandUpFromTeamMemberDict name teamMember =
 initStandUpEntryFromTeamMember : TeamMember -> StandUpEntry
 initStandUpEntryFromTeamMember teamMember =
     { teamMember = teamMember
+    , checkHipChat = False
     , completed = False
     }
 
@@ -208,29 +214,44 @@ viewKeyedEntry standUpEntry =
 viewStandUpEntry : StandUpEntry -> Html Msg
 viewStandUpEntry standUpEntry =
     let
+        -- TODO: Use classList instead.
         completedClass =
             if standUpEntry.completed then
                 "completed"
             else
                 ""
     in
-        li [ class completedClass ]
-            [ input
-                [ type_ "checkbox"
-                , checked standUpEntry.completed
+        li
+            [ class completedClass
+            , class "stand-up-entry"
+            ]
+            [ i
+                [ classList
+                    [ ( "far fa-square", not standUpEntry.completed )
+                    , ( "far fa-check-square", standUpEntry.completed )
+                    ]
                 , onClick (ToggleEntryCompleted standUpEntry.teamMember.name)
                 ]
                 []
-            , text standUpEntry.teamMember.name
+            , span []
+                [ text standUpEntry.teamMember.name
+                ]
+            , i
+                [ classList
+                    [ ( "far fa-comment", True )
+                    , ( "disabled", not standUpEntry.checkHipChat )
+                    ]
+                , onClick (ToggleCheckHipChat standUpEntry.teamMember.name)
+                ]
+                []
             ]
 
 
 viewAddNewStandupEntryInput : Model -> Html Msg
 viewAddNewStandupEntryInput model =
-    li []
-        [ input
-            [ type_ "checkbox"
-            , checked False
+    li [ class "stand-up-entry" ]
+        [ i
+            [ class "far fa-square"
             ]
             []
         , input
@@ -297,6 +318,7 @@ type Msg
     = ToggleEntryCompleted String
     | AddTeamMember
     | UpdateTeamMemberInput String
+    | ToggleCheckHipChat String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -313,6 +335,9 @@ update msg model =
                 | addTeamMemberInput = name
             }
                 ! []
+
+        ToggleCheckHipChat name ->
+            toggleEntryCheckHipChat model name ! []
 
 
 toggleEntryCompleted : Model -> String -> Model
@@ -335,6 +360,31 @@ toggleCompleted maybeStandUpEntry =
             Just
                 { standUpEntry
                     | completed = not standUpEntry.completed
+                }
+
+
+{-| This is a clear duplication of toggleEntryCompleted. Not sure yet whether to generalize.
+-}
+toggleEntryCheckHipChat : Model -> String -> Model
+toggleEntryCheckHipChat model name =
+    let
+        updatedStandUpEntries =
+            Dict.update name toggleCheckHipChat model.standUpEntries
+    in
+        { model | standUpEntries = updatedStandUpEntries }
+
+
+toggleCheckHipChat : Maybe StandUpEntry -> Maybe StandUpEntry
+toggleCheckHipChat maybeStandUpEntry =
+    case maybeStandUpEntry of
+        Nothing ->
+            -- Could show an error in the future.
+            Nothing
+
+        Just standUpEntry ->
+            Just
+                { standUpEntry
+                    | checkHipChat = not standUpEntry.checkHipChat
                 }
 
 
