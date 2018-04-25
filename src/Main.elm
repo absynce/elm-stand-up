@@ -344,23 +344,16 @@ toggleEntryCompleted : Model -> String -> Model
 toggleEntryCompleted model name =
     let
         updatedStandUpEntries =
-            Dict.update name toggleCompleted model.standUpEntries
+            Dict.update name (Maybe.map toggleCompleted) model.standUpEntries
     in
         { model | standUpEntries = updatedStandUpEntries }
 
 
-toggleCompleted : Maybe StandUpEntry -> Maybe StandUpEntry
-toggleCompleted maybeStandUpEntry =
-    case maybeStandUpEntry of
-        Nothing ->
-            -- Could show an error in the future.
-            Nothing
-
-        Just standUpEntry ->
-            Just
-                { standUpEntry
-                    | completed = not standUpEntry.completed
-                }
+toggleCompleted : StandUpEntry -> StandUpEntry
+toggleCompleted standUpEntry =
+    { standUpEntry
+        | completed = not standUpEntry.completed
+    }
 
 
 {-| This is a clear duplication of toggleEntryCompleted. Not sure yet whether to generalize.
@@ -369,23 +362,16 @@ toggleEntryCheckHipChat : Model -> String -> Model
 toggleEntryCheckHipChat model name =
     let
         updatedStandUpEntries =
-            Dict.update name toggleCheckHipChat model.standUpEntries
+            Dict.update name (Maybe.map toggleCheckHipChat) model.standUpEntries
     in
         { model | standUpEntries = updatedStandUpEntries }
 
 
-toggleCheckHipChat : Maybe StandUpEntry -> Maybe StandUpEntry
-toggleCheckHipChat maybeStandUpEntry =
-    case maybeStandUpEntry of
-        Nothing ->
-            -- Could show an error in the future.
-            Nothing
-
-        Just standUpEntry ->
-            Just
-                { standUpEntry
-                    | checkHipChat = not standUpEntry.checkHipChat
-                }
+toggleCheckHipChat : StandUpEntry -> StandUpEntry
+toggleCheckHipChat standUpEntry =
+    { standUpEntry
+        | checkHipChat = not standUpEntry.checkHipChat
+    }
 
 
 validateTeamMember : TeamMember -> Model -> AddTeamMemberValidation
