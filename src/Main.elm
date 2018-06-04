@@ -78,8 +78,18 @@ type AddTeamMemberError
 type alias StandUpEntry =
     { teamMember : TeamMember
     , checkHipChat : Bool
-    , completed : Bool
+    , status : StandUpEntryStatus
     }
+
+
+type StandUpEntryStatus
+    = Completed
+    | ToDo
+    | NotWorking NotWorkingReason
+
+
+type NotWorkingReason
+    = PaidTimeOff
 
 
 type alias TeamMember =
@@ -94,6 +104,32 @@ teamMembersToDict teamMembers =
                 teamMembers
     in
         Dict.fromList teamMembersKeyedTuple
+
+
+isComplete : StandUpEntry -> Bool
+isComplete standUpEntry =
+    case standUpEntry.status of
+        Completed ->
+            True
+
+        ToDo ->
+            False
+
+        NotWorking notWorkingReason ->
+            True
+
+
+isNotWorking : StandUpEntry -> Bool
+isNotWorking standUpEntry =
+    case standUpEntry.status of
+        Completed ->
+            False
+
+        ToDo ->
+            False
+
+        NotWorking notWorkingReason ->
+            True
 
 
 
@@ -152,7 +188,7 @@ initStandUpEntryFromTeamMember : TeamMember -> StandUpEntry
 initStandUpEntryFromTeamMember teamMember =
     { teamMember = teamMember
     , checkHipChat = False
-    , completed = False
+    , status = ToDo
     }
 
 
@@ -192,7 +228,7 @@ viewStandUpEntries standUpEntries =
 
 completedComparison : StandUpEntry -> StandUpEntry -> Order
 completedComparison entryA entryB =
-    case ( entryA.completed, entryB.completed ) of
+    case ( entryA |> isComplete, entryB |> isComplete ) of
         ( True, True ) ->
             EQ
 
@@ -216,7 +252,7 @@ viewStandUpEntry standUpEntry =
     let
         -- TODO: Use classList instead.
         completedClass =
-            if standUpEntry.completed then
+            if standUpEntry |> isComplete then
                 "completed"
             else
                 ""
@@ -227,8 +263,9 @@ viewStandUpEntry standUpEntry =
             ]
             [ i
                 [ classList
-                    [ ( "far fa-square", not standUpEntry.completed )
-                    , ( "far fa-check-square", standUpEntry.completed )
+                    [ ( "far fa-square", standUpEntry.status == ToDo )
+                    , ( "far fa-check-square", standUpEntry.status == Completed )
+                    , ( "fas fa-times", standUpEntry |> isNotWorking )
                     ]
                 , onClick (ToggleEntryCompleted standUpEntry.teamMember.name)
                 ]
@@ -242,6 +279,14 @@ viewStandUpEntry standUpEntry =
                     , ( "disabled", not standUpEntry.checkHipChat )
                     ]
                 , onClick (ToggleCheckHipChat standUpEntry.teamMember.name)
+                ]
+                []
+            , i
+                [ classList
+                    [ ( "fas fa-ban", True )
+                    , ( "disabled", standUpEntry |> isNotWorking |> not )
+                    ]
+                , onClick (ToggleEntryNotWorking standUpEntry.teamMember.name PaidTimeOff)
                 ]
                 []
             ]
@@ -316,6 +361,7 @@ var elmStandUp = Elm.Main.fullscreen(startingState);
 
 type Msg
     = ToggleEntryCompleted String
+    | ToggleEntryNotWorking String NotWorkingReason
     | AddTeamMember
     | UpdateTeamMemberInput String
     | ToggleCheckHipChat String
@@ -326,6 +372,9 @@ update msg model =
     case msg of
         ToggleEntryCompleted name ->
             toggleEntryCompleted model name ! []
+
+        ToggleEntryNotWorking name notWorkingReason ->
+            toggleEntryNotWorking model name notWorkingReason ! []
 
         AddTeamMember ->
             (model |> addTeamMember model.addTeamMemberInput) ! []
@@ -352,8 +401,53 @@ toggleEntryCompleted model name =
 toggleCompleted : StandUpEntry -> StandUpEntry
 toggleCompleted standUpEntry =
     { standUpEntry
-        | completed = not standUpEntry.completed
+        | status = toggleStatusCompleted standUpEntry.status
     }
+
+
+toggleStatusCompleted : StandUpEntryStatus -> StandUpEntryStatus
+toggleStatusCompleted standUpEntryStatus =
+    case standUpEntryStatus of
+        Completed ->
+            ToDo
+
+        ToDo ->
+            Completed
+
+        NotWorking notWorkingReason ->
+            ToDo
+
+
+toggleEntryNotWorking : Model -> String -> NotWorkingReason -> Model
+toggleEntryNotWorking model name notWorkingReason =
+    let
+        maybeToggleNotWorking =
+            Maybe.map (toggleNotWorking notWorkingReason)
+
+        updatedStandUpEntries =
+            Dict.update name maybeToggleNotWorking model.standUpEntries
+    in
+        { model | standUpEntries = updatedStandUpEntries }
+
+
+toggleNotWorking : NotWorkingReason -> StandUpEntry -> StandUpEntry
+toggleNotWorking notWorkingReason standUpEntry =
+    { standUpEntry
+        | status = toggleStatusNotWorking notWorkingReason standUpEntry.status
+    }
+
+
+toggleStatusNotWorking : NotWorkingReason -> StandUpEntryStatus -> StandUpEntryStatus
+toggleStatusNotWorking notWorkingReason standUpEntryStatus =
+    case standUpEntryStatus of
+        Completed ->
+            ToDo
+
+        ToDo ->
+            NotWorking notWorkingReason
+
+        NotWorking notWorkingReason ->
+            ToDo
 
 
 {-| This is a clear duplication of toggleEntryCompleted. Not sure yet whether to generalize.
@@ -446,7 +540,6 @@ encodeStandUpEntry : StandUpEntry -> Encode.Value
 encodeStandUpEntry standUpEntry =
     Encode.object
         [ ( "teamMember", encodeTeamMember standUpEntry.teamMember )
-        , ( "completed", Encode.bool standUpEntry.completed )
         ]
 
 
