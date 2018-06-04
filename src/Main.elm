@@ -211,9 +211,10 @@ viewStandUp model =
     div [ class "stand-up-meeting" ]
         [ h2 [] [ text "Stand-up meeting" ]
         , Keyed.ul [ class "stand-up-entries" ]
-            ((viewStandUpEntries model.standUpEntries)
-                -- TODO: Improve the keying/clarity here.
-                |> List.append [ ( "", viewAddNewStandupEntryInput model ) ]
+            -- TODO: Improve the keying/clarity here.
+            (( "", viewAddNewStandupEntryInput model )
+                :: viewStandUpEntries model.standUpEntries
+             -- |> List.append [ ( "", viewAddNewStandupEntryInput model ) ]
             )
         ]
 
