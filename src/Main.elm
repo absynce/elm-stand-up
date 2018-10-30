@@ -1,4 +1,4 @@
-port module Main exposing (..)
+port module Main exposing (main)
 
 import Dict exposing (Dict)
 import Html exposing (..)
@@ -7,6 +7,8 @@ import Html.Events exposing (onClick, onInput)
 import Html.Keyed as Keyed
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
+import Task
+import Time exposing (Time)
 
 
 main : Program UnsafeFlags Model Msg
@@ -43,9 +45,9 @@ updateWithSave msg model =
             newModel
                 |> encodeModel
     in
-        ( newModel
-        , Cmd.batch [ saveStandUp encodedNewModel, cmds ]
-        )
+    ( newModel
+    , Cmd.batch [ saveStandUp encodedNewModel, cmds ]
+    )
 
 
 
@@ -77,13 +79,15 @@ type AddTeamMemberError
 
 type alias StandUpEntry =
     { teamMember : TeamMember
+
+    -- TODO: Move into StandUpEntryStatus (NotHere?).
     , checkHipChat : Bool
     , status : StandUpEntryStatus
     }
 
 
 type StandUpEntryStatus
-    = Completed
+    = Completed Time
     | ToDo
     | NotWorking NotWorkingReason
 
@@ -103,13 +107,13 @@ teamMembersToDict teamMembers =
             List.map (\teamMember -> ( teamMember.name, teamMember ))
                 teamMembers
     in
-        Dict.fromList teamMembersKeyedTuple
+    Dict.fromList teamMembersKeyedTuple
 
 
 isComplete : StandUpEntry -> Bool
 isComplete standUpEntry =
     case standUpEntry.status of
-        Completed ->
+        Completed _ ->
             True
 
         ToDo ->
@@ -122,7 +126,7 @@ isComplete standUpEntry =
 isNotWorking : StandUpEntry -> Bool
 isNotWorking standUpEntry =
     case standUpEntry.status of
-        Completed ->
+        Completed _ ->
             False
 
         ToDo ->
@@ -162,12 +166,12 @@ initModelFromFlags flags =
         teamMembersDict =
             teamMembersToDict flags.teamMembers
     in
-        { standUpEntries =
-            Dict.map initStandUpFromTeamMemberDict teamMembersDict
-        , error = NoError
-        , addTeamMemberError = NoAddTeamMemberError
-        , addTeamMemberInput = ""
-        }
+    { standUpEntries =
+        Dict.map initStandUpFromTeamMemberDict teamMembersDict
+    , error = NoError
+    , addTeamMemberError = NoAddTeamMemberError
+    , addTeamMemberInput = ""
+    }
 
 
 initModelFromError : String -> Model
@@ -255,42 +259,43 @@ viewStandUpEntry standUpEntry =
         completedClass =
             if standUpEntry |> isComplete then
                 "completed"
+
             else
                 ""
     in
-        li
-            [ class completedClass
-            , class "stand-up-entry"
+    li
+        [ class completedClass
+        , class "stand-up-entry"
+        ]
+        [ i
+            [ classList
+                [ ( "far fa-square", standUpEntry.status == ToDo )
+                , ( "far fa-check-square", standUpEntry |> isComplete )
+                , ( "fas fa-times", standUpEntry |> isNotWorking )
+                ]
+            , onClick (StartToggleEntryCompleted standUpEntry.teamMember.name)
             ]
-            [ i
-                [ classList
-                    [ ( "far fa-square", standUpEntry.status == ToDo )
-                    , ( "far fa-check-square", standUpEntry.status == Completed )
-                    , ( "fas fa-times", standUpEntry |> isNotWorking )
-                    ]
-                , onClick (ToggleEntryCompleted standUpEntry.teamMember.name)
-                ]
-                []
-            , span []
-                [ text standUpEntry.teamMember.name
-                ]
-            , i
-                [ classList
-                    [ ( "far fa-comment", True )
-                    , ( "disabled", not standUpEntry.checkHipChat )
-                    ]
-                , onClick (ToggleCheckHipChat standUpEntry.teamMember.name)
-                ]
-                []
-            , i
-                [ classList
-                    [ ( "fas fa-ban", True )
-                    , ( "disabled", standUpEntry |> isNotWorking |> not )
-                    ]
-                , onClick (ToggleEntryNotWorking standUpEntry.teamMember.name PaidTimeOff)
-                ]
-                []
+            []
+        , span []
+            [ text standUpEntry.teamMember.name
             ]
+        , i
+            [ classList
+                [ ( "far fa-comment", True )
+                , ( "disabled", not standUpEntry.checkHipChat )
+                ]
+            , onClick (ToggleCheckHipChat standUpEntry.teamMember.name)
+            ]
+            []
+        , i
+            [ classList
+                [ ( "fas fa-ban", True )
+                , ( "disabled", standUpEntry |> isNotWorking |> not )
+                ]
+            , onClick (ToggleEntryNotWorking standUpEntry.teamMember.name PaidTimeOff)
+            ]
+            []
+        ]
 
 
 viewAddNewStandupEntryInput : Model -> Html Msg
@@ -319,11 +324,12 @@ onEnter msg =
         isEnter code =
             if code == 13 then
                 Decode.succeed msg
+
             else
                 Decode.fail "not ENTER"
     in
-        Html.Events.on "keydown"
-            (Html.Events.keyCode |> Decode.andThen isEnter)
+    Html.Events.on "keydown"
+        (Html.Events.keyCode |> Decode.andThen isEnter)
 
 
 viewError : Model -> Html Msg
@@ -361,7 +367,8 @@ var elmStandUp = Elm.Main.fullscreen(startingState);
 
 
 type Msg
-    = ToggleEntryCompleted String
+    = StartToggleEntryCompleted String
+    | ToggleEntryCompleted String Time
     | ToggleEntryNotWorking String NotWorkingReason
     | AddTeamMember
     | UpdateTeamMemberInput String
@@ -371,8 +378,13 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ToggleEntryCompleted name ->
-            toggleEntryCompleted model name ! []
+        StartToggleEntryCompleted name ->
+            ( model
+            , Task.perform (ToggleEntryCompleted name) Time.now
+            )
+
+        ToggleEntryCompleted name time ->
+            toggleEntryCompleted model name time ! []
 
         ToggleEntryNotWorking name notWorkingReason ->
             toggleEntryNotWorking model name notWorkingReason ! []
@@ -390,30 +402,33 @@ update msg model =
             toggleEntryCheckHipChat model name ! []
 
 
-toggleEntryCompleted : Model -> String -> Model
-toggleEntryCompleted model name =
+toggleEntryCompleted : Model -> String -> Time -> Model
+toggleEntryCompleted model name time =
     let
         updatedStandUpEntries =
-            Dict.update name (Maybe.map toggleCompleted) model.standUpEntries
+            Dict.update name maybeToggleCompleted model.standUpEntries
+
+        maybeToggleCompleted =
+            Maybe.map (toggleCompleted time)
     in
-        { model | standUpEntries = updatedStandUpEntries }
+    { model | standUpEntries = updatedStandUpEntries }
 
 
-toggleCompleted : StandUpEntry -> StandUpEntry
-toggleCompleted standUpEntry =
+toggleCompleted : Time -> StandUpEntry -> StandUpEntry
+toggleCompleted time standUpEntry =
     { standUpEntry
-        | status = toggleStatusCompleted standUpEntry.status
+        | status = toggleStatusCompleted time standUpEntry.status
     }
 
 
-toggleStatusCompleted : StandUpEntryStatus -> StandUpEntryStatus
-toggleStatusCompleted standUpEntryStatus =
+toggleStatusCompleted : Time -> StandUpEntryStatus -> StandUpEntryStatus
+toggleStatusCompleted time standUpEntryStatus =
     case standUpEntryStatus of
-        Completed ->
+        Completed _ ->
             ToDo
 
         ToDo ->
-            Completed
+            Completed time
 
         NotWorking notWorkingReason ->
             ToDo
@@ -428,7 +443,7 @@ toggleEntryNotWorking model name notWorkingReason =
         updatedStandUpEntries =
             Dict.update name maybeToggleNotWorking model.standUpEntries
     in
-        { model | standUpEntries = updatedStandUpEntries }
+    { model | standUpEntries = updatedStandUpEntries }
 
 
 toggleNotWorking : NotWorkingReason -> StandUpEntry -> StandUpEntry
@@ -441,7 +456,7 @@ toggleNotWorking notWorkingReason standUpEntry =
 toggleStatusNotWorking : NotWorkingReason -> StandUpEntryStatus -> StandUpEntryStatus
 toggleStatusNotWorking notWorkingReason standUpEntryStatus =
     case standUpEntryStatus of
-        Completed ->
+        Completed _ ->
             ToDo
 
         ToDo ->
@@ -459,7 +474,7 @@ toggleEntryCheckHipChat model name =
         updatedStandUpEntries =
             Dict.update name (Maybe.map toggleCheckHipChat) model.standUpEntries
     in
-        { model | standUpEntries = updatedStandUpEntries }
+    { model | standUpEntries = updatedStandUpEntries }
 
 
 toggleCheckHipChat : StandUpEntry -> StandUpEntry
@@ -476,12 +491,12 @@ validateTeamMember teamMember model =
             model.standUpEntries
                 |> Dict.get teamMember.name
     in
-        case nameInUse of
-            Just standUpEntry ->
-                TeamMemberNameAlreadyExists standUpEntry.teamMember.name
+    case nameInUse of
+        Just standUpEntry ->
+            TeamMemberNameAlreadyExists standUpEntry.teamMember.name
 
-            Nothing ->
-                ValidTeamMember teamMember
+        Nothing ->
+            ValidTeamMember teamMember
 
 
 addTeamMember : String -> Model -> Model
@@ -491,17 +506,17 @@ addTeamMember name model =
             model
                 |> validateTeamMember (TeamMember name)
     in
-        case addTeamMemberValidation of
-            ValidTeamMember teamMember ->
-                { model
-                    | standUpEntries = Dict.insert teamMember.name (initStandUpEntryFromTeamMember teamMember) model.standUpEntries
-                    , addTeamMemberInput = ""
-                }
+    case addTeamMemberValidation of
+        ValidTeamMember teamMember ->
+            { model
+                | standUpEntries = Dict.insert teamMember.name (initStandUpEntryFromTeamMember teamMember) model.standUpEntries
+                , addTeamMemberInput = ""
+            }
 
-            TeamMemberNameAlreadyExists name ->
-                { model
-                    | addTeamMemberError = NameAlreadyExists name
-                }
+        TeamMemberNameAlreadyExists name ->
+            { model
+                | addTeamMemberError = NameAlreadyExists name
+            }
 
 
 
@@ -531,10 +546,10 @@ encodeModel model =
                 |> List.map .teamMember
                 |> List.map encodeTeamMember
     in
-        Encode.object
-            [ ( "standUpEntries", Encode.list encodedStandUpEntries )
-            , ( "teamMembers", Encode.list encodedTeamMembers )
-            ]
+    Encode.object
+        [ ( "standUpEntries", Encode.list encodedStandUpEntries )
+        , ( "teamMembers", Encode.list encodedTeamMembers )
+        ]
 
 
 encodeStandUpEntry : StandUpEntry -> Encode.Value
