@@ -4,9 +4,9 @@
   "description": "A daily stand-up meeting tool written in Elm.",
   "main": "index.js",
   "scripts": {
-    "build": "cd src && elm-make Main.elm --output=../elm.js --debug",
+    "build": "elm make src/Main.elm --output=elm.js --debug",
     "dev": "npm run watch -s && npm run start",
-    "start": "elm-reactor -p 8083",
+    "start": "elm reactor --port=8083",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "chokidar \"**/*.elm\" -c \"npm run build\" --initial"
   },
@@ -20,6 +20,9 @@
   "license": "MIT",
   "devDependencies": {
     "chokidar-cli": "^1.2.0",
-    "elm": "^0.18.0"
+    "elm": "^0.19.0-bugfix2"
+  },
+  "dependencies": {
+    "elm-format": "^0.8.1"
   }
 }

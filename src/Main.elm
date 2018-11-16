@@ -1,5 +1,6 @@
 port module Main exposing (main)
 
+import Browser
 import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (checked, class, classList, placeholder, type_, value)
@@ -8,12 +9,12 @@ import Html.Keyed as Keyed
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Task
-import Time exposing (Time)
+import Time exposing (Posix)
 
 
 main : Program UnsafeFlags Model Msg
 main =
-    Html.programWithFlags
+    Browser.element
         { init = initSafely
         , view = view
         , update = updateWithSave
@@ -87,7 +88,7 @@ type alias StandUpEntry =
 
 
 type StandUpEntryStatus
-    = Completed Time
+    = Completed Posix
     | ToDo
     | NotWorking NotWorkingReason
 
@@ -148,16 +149,18 @@ type alias Flags =
     { teamMembers : List TeamMember }
 
 
-init : Result String Flags -> ( Model, Cmd Msg )
+init : Result Decode.Error Flags -> ( Model, Cmd Msg )
 init flagsResult =
     case flagsResult of
         Ok flags ->
-            initModelFromFlags flags
-                ! []
+            ( initModelFromFlags flags
+            , Cmd.none
+            )
 
         Err err ->
-            initModelFromError err
-                ! []
+            ( initModelFromError err
+            , Cmd.none
+            )
 
 
 initModelFromFlags : Flags -> Model
@@ -174,10 +177,14 @@ initModelFromFlags flags =
     }
 
 
-initModelFromError : String -> Model
+initModelFromError : Decode.Error -> Model
 initModelFromError error =
+    let
+        errorString =
+            error |> Decode.errorToString
+    in
     { standUpEntries = Dict.empty
-    , error = InitError error
+    , error = InitError errorString
     , addTeamMemberError = NoAddTeamMemberError
     , addTeamMemberInput = ""
     }
@@ -368,7 +375,7 @@ var elmStandUp = Elm.Main.fullscreen(startingState);
 
 type Msg
     = StartToggleEntryCompleted String
-    | ToggleEntryCompleted String Time
+    | ToggleEntryCompleted String Posix
     | ToggleEntryNotWorking String NotWorkingReason
     | AddTeamMember
     | UpdateTeamMemberInput String
@@ -384,25 +391,34 @@ update msg model =
             )
 
         ToggleEntryCompleted name time ->
-            toggleEntryCompleted model name time ! []
+            ( toggleEntryCompleted model name time
+            , Cmd.none
+            )
 
         ToggleEntryNotWorking name notWorkingReason ->
-            toggleEntryNotWorking model name notWorkingReason ! []
+            ( toggleEntryNotWorking model name notWorkingReason
+            , Cmd.none
+            )
 
         AddTeamMember ->
-            (model |> addTeamMember model.addTeamMemberInput) ! []
+            ( model |> addTeamMember model.addTeamMemberInput
+            , Cmd.none
+            )
 
         UpdateTeamMemberInput name ->
-            { model
+            ( { model
                 | addTeamMemberInput = name
-            }
-                ! []
+              }
+            , Cmd.none
+            )
 
         ToggleCheckHipChat name ->
-            toggleEntryCheckHipChat model name ! []
+            ( toggleEntryCheckHipChat model name
+            , Cmd.none
+            )
 
 
-toggleEntryCompleted : Model -> String -> Time -> Model
+toggleEntryCompleted : Model -> String -> Posix -> Model
 toggleEntryCompleted model name time =
     let
         updatedStandUpEntries =
@@ -414,14 +430,14 @@ toggleEntryCompleted model name time =
     { model | standUpEntries = updatedStandUpEntries }
 
 
-toggleCompleted : Time -> StandUpEntry -> StandUpEntry
+toggleCompleted : Posix -> StandUpEntry -> StandUpEntry
 toggleCompleted time standUpEntry =
     { standUpEntry
         | status = toggleStatusCompleted time standUpEntry.status
     }
 
 
-toggleStatusCompleted : Time -> StandUpEntryStatus -> StandUpEntryStatus
+toggleStatusCompleted : Posix -> StandUpEntryStatus -> StandUpEntryStatus
 toggleStatusCompleted time standUpEntryStatus =
     case standUpEntryStatus of
         Completed _ ->
@@ -462,7 +478,7 @@ toggleStatusNotWorking notWorkingReason standUpEntryStatus =
         ToDo ->
             NotWorking notWorkingReason
 
-        NotWorking notWorkingReason ->
+        NotWorking _ ->
             ToDo
 
 
@@ -513,9 +529,9 @@ addTeamMember name model =
                 , addTeamMemberInput = ""
             }
 
-        TeamMemberNameAlreadyExists name ->
+        TeamMemberNameAlreadyExists existingName ->
             { model
-                | addTeamMemberError = NameAlreadyExists name
+                | addTeamMemberError = NameAlreadyExists existingName
             }
 
 
@@ -537,18 +553,13 @@ encodeModel model =
             model.standUpEntries
                 |> Dict.values
 
-        encodedStandUpEntries =
-            standUpEntryList
-                |> List.map encodeStandUpEntry
-
-        encodedTeamMembers =
+        teamMembers =
             standUpEntryList
                 |> List.map .teamMember
-                |> List.map encodeTeamMember
     in
     Encode.object
-        [ ( "standUpEntries", Encode.list encodedStandUpEntries )
-        , ( "teamMembers", Encode.list encodedTeamMembers )
+        [ ( "standUpEntries", Encode.list encodeStandUpEntry standUpEntryList )
+        , ( "teamMembers", Encode.list encodeTeamMember teamMembers )
         ]
 
 
@@ -566,7 +577,7 @@ encodeTeamMember teamMember =
         ]
 
 
-decodeFlags : UnsafeFlags -> Result String Flags
+decodeFlags : UnsafeFlags -> Result Decode.Error Flags
 decodeFlags unsafeFlags =
     Decode.decodeValue flagsDecoder unsafeFlags
 

@@ -10,10 +10,14 @@
 </head>
 
 <body>
+  <div id="elm-app"></div>
    <script type="text/javascript">
       var storedState = localStorage.getItem('elm-stand-up-team-members');
       var startingState = storedState ? JSON.parse(storedState) : [];
-      var elmStandUp = Elm.Main.fullscreen(startingState);
+      var elmStandUp = Elm.Main.init({
+        node: document.getElementById('elm-app'),
+        flags: startingState
+      });
 
       elmStandUp.ports.saveStandUp.subscribe(function (standUpModel) {
          console.log(standUpModel);
